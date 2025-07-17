@@ -198,7 +198,7 @@ console.log('File exists:', existsSync(path));
 
 // Middlewares
 app.use(cors({
-  origin: ["https://api.livyco.com", "http://localhost:5173", "https://livyco.com/", "http://82.29.161.78:5000"], // Replace with your actual frontend URL
+  origin: ["https://api.livyco.com", "http://localhost:5173", "https://livyco.com", "http://82.29.161.78:5000"], // Replace with your actual frontend URL
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
   methods: ["GET", "POST", "PUT",'PATCH', "DELETE", "OPTIONS"],
