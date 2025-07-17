@@ -1,0 +1,282 @@
+
+
+// // app.js
+// import express from "express";
+// import cors from "cors";
+// import mongoose from "mongoose";
+// import dotenv from "dotenv";
+// import authRoutes from "./routes/authRoutes.js";
+// import adminRoutes from './routes/adminRoutes.js';
+// import { existsSync } from 'fs';
+// import Admin from "./models/Admin.js";
+
+
+// const path = './livyco-b65f5-firebase-adminsdk-fbsvc-bdf4b116db.json';
+// console.log('File exists:', existsSync(path));
+
+// dotenv.config();
+
+// const app = express();
+
+// // Enhanced CORS middleware
+// app.use(cors({
+//   origin: true, // or specific origin like "http://localhost:3000"
+//   credentials: true,
+//   allowedHeaders: ["Content-Type", "Authorization"],
+//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//   exposedHeaders: ["Authorization"]
+// }));
+
+// app.use(express.json());
+
+// app.use("/api/auth", authRoutes);
+// // Health check endpoint
+// app.get("/health", (req, res) => {
+//   res.status(200).json({ status: "OK" });
+// });
+// // Admin routes
+// app.use("/api/admin", adminRoutes);
+
+// // Error handling middleware
+// app.use((err, req, res, next) => {
+//   console.error(err.stack);
+//   res.status(500).json({
+//     success: false,
+//     message: "Internal server error",
+//     error: err.message
+//   });
+// });
+
+
+
+// // Initialize default admin
+// const initializeAdmin = async () => {
+//   try {
+//     const adminEmail = "prabhashyams@gmail.com";
+//     const existingAdmin = await Admin.findOne({ email: adminEmail });
+
+//     if (!existingAdmin) {
+//       await Admin.create({
+//         email: adminEmail,
+//         password: "Shyam@1234", // plain password
+//         name: "Admin",
+//         role: "admin"
+//       });
+//       console.log("✅ Superadmin created successfully");
+//     } else {
+//       console.log("✅ Superadmin already exists");
+//     }
+//   } catch (error) {
+//     console.error("❌ Error initializing admin:", error);
+//   }
+// };
+// initializeAdmin();
+
+
+
+// mongoose.connect(process.env.MONGO_URI, {
+//   useNewUrlParser: true,
+//   useUnifiedTopology: true,
+// })
+// .then(() => {
+//   console.log("MongoDB connected");
+//   app.listen(process.env.PORT || 5000, () => {
+//     console.log("Server running on port", process.env.PORT || 5000);
+//   });
+// })
+// .catch((err) => console.error("MongoDB connection error:", err));
+
+
+
+
+// import express from "express";
+// import cors from "cors";
+// import mongoose from "mongoose";
+// import dotenv from "dotenv";
+// import authRoutes from "./routes/authRoutes.js";
+// import adminRoutes from './routes/adminRoutes.js';
+// import { existsSync } from 'fs';
+// import Admin from "./models/Admin.js";
+
+// dotenv.config();
+
+// const app = express();
+// const path = './livyco-b65f5-firebase-adminsdk-fbsvc-bdf4b116db.json';
+// console.log('File exists:', existsSync(path));
+
+// // Middlewares
+// app.use(cors({
+//   origin: true,
+//   credentials: true,
+//   allowedHeaders: ["Content-Type", "Authorization"],
+//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//   exposedHeaders: ["Authorization"]
+// }));
+
+// app.use(express.json());
+
+// // Routes
+// app.use("/api/auth", authRoutes);
+// app.use("/api/admin", adminRoutes);
+
+// app.get("/health", (req, res) => {
+//   res.status(200).json({ status: "OK" });
+// });
+
+// // Global error handler
+// app.use((err, req, res, next) => {
+//   console.error(err.stack);
+//   res.status(500).json({
+//     success: false,
+//     message: "Internal server error",
+//     error: err.message
+//   });
+// });
+
+// // MongoDB connection
+// mongoose.connect(process.env.MONGO_URI)
+
+//   .then(async () => {
+
+//     console.log("✅ MongoDB connected");
+//     // Ensure the database connection is established before starting the server
+//     // Check if the Admin model is defined
+
+
+//     // Start server only after DB connection
+//     app.listen(process.env.PORT || 5000, () => {
+//       console.log("🚀 Server running on port", process.env.PORT || 5000);
+//     });
+
+//     // Initialize admin only after DB is connected
+//     await initializeAdmin();
+
+//   })
+//   .catch((err) => {
+//   // Handle MongoDB connection errors
+//     console.error("❌ MongoDB connection error:", err);
+//   });
+
+// // Superadmin creation logic
+// const initializeAdmin = async () => {
+//   try {
+//     const adminEmail = "prabhashyams@gmail.com";
+//     const existingAdmin = await Admin.findOne({ email: adminEmail });
+
+//     if (!existingAdmin) {
+//       await Admin.create({
+//         email: adminEmail,
+//         password: "Shyam@1234",
+//         name: "Admin",
+//         role: "admin"
+//       });
+//       console.log("✅ Superadmin created successfully");
+//     } else {
+//       console.log("✅ Superadmin already exists");
+//     }
+//   } catch (error) {
+//     console.error("❌ Error initializing admin:", error);
+//   }
+// };
+
+
+import express from "express";
+import cors from "cors";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import authRoutes from "./routes/authRoutes.js";
+import adminRoutes from './routes/adminRoutes.js';
+import { existsSync } from 'fs';
+import Admin from "./models/Admin.js";
+
+
+dotenv.config();
+
+const app = express();
+const path = './livyco-b65f5-firebase-adminsdk-fbsvc-bdf4b116db.json';
+console.log('File exists:', existsSync(path));
+
+// Middlewares
+app.use(cors({
+  origin: ["https://api.livyco.com", "http://localhost:5173", "https://livyco.com/", "http://82.29.161.78:5000"], // Replace with your actual frontend URL
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
+  methods: ["GET", "POST", "PUT",'PATCH', "DELETE", "OPTIONS"],
+  exposedHeaders: ["Authorization"]
+}));
+
+app.use(express.json()); // For parsing application/json
+app.use(express.urlencoded({ extended: true })); 
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Invalid JSON format' 
+    });
+  }
+  next();
+});
+
+// Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
+
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK" });
+});
+
+// Superadmin creation logic
+const initializeAdmin = async () => {
+  try {
+    const adminEmail = "prabhashyams@gmail.com";
+    const existingAdmin = await Admin.findOne({ email: adminEmail });
+
+    if (!existingAdmin) {
+      await Admin.create({
+        email: adminEmail,
+        password: "Shyam@1234",
+        name: "Admin",
+        role: "admin"
+      });
+      console.log("✅ Superadmin created successfully");
+    } else {
+      console.log("✅ Superadmin already exists");
+    }
+  } catch (error) {
+    console.error("❌ Error initializing admin:", error);
+  }
+};
+
+// MongoDB connection with improved options
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000
+    });
+    console.log("✅ MongoDB connected");
+    await initializeAdmin();
+  } catch (err) {
+    console.error("❌ MongoDB connection error:", err);
+    process.exit(1);
+  }
+};
+
+// Start server only after DB connection
+connectDB().then(() => {
+  app.listen(process.env.PORT || 5000, () => {
+    console.log(`🚀 Server running on port ${process.env.PORT || 5000}`);
+  });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    success: false,
+    message: "Internal server error",
+    error: err.message
+  });
+});
