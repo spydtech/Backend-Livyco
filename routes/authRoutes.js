@@ -46,6 +46,14 @@ import { protectAdmin, authorizeAdmin } from "../middlewares/authMiddleware.js";
 //Client imports
 import { createBooking, getBookingsByProperty, approveBooking, rejectBooking, getallBookings } from "../controllers/bookingController.js";
 
+//chat imports
+// import { 
+//   getUsers, 
+//   getMessages, 
+//   sendMessage, 
+//   markAsRead 
+// } from '../controllers/chatController.js';
+
 
 import multer from "multer";
 
@@ -80,7 +88,7 @@ router.put("/properties/:id", verifyToken, updateProperty);
 // Media routes
 router.post("/media/upload", verifyToken, upload.array('files', 10), uploadMedia);
 router.get("/media", verifyToken, getMedia);
-router.delete("/media/:propertyId", verifyToken, deleteMediaItem);
+router.delete("/media/:mediaId", verifyToken, deleteMediaItem);
 router.put("/media/:type/:mediaId", verifyToken, editMediaItem);
 router.get("/media/property/:propertyId", verifyToken, getMediaByPropertyId);
 
@@ -119,7 +127,7 @@ router.put('/pg/:propertyId', verifyToken, savePGProperty);
 router.get('/pg/:propertyId', verifyToken, getPGProperty);
 
 // ✅ Delete PG property
-router.delete('/pg/:propertyId', verifyToken, deletePGProperty);
+router.delete('/pg/:pgId', verifyToken, deletePGProperty);
 
 // New approval/rejection routes
 
@@ -140,5 +148,11 @@ router.put('/user/profile', verifyToken, updateUserProfile);
 router.get('/users', getAllUsers);
 //client manul registration user
 router.post('/client/register-by-client', verifyToken, aadharUpload.single('aadharPhoto'), addTenantByClient);
+
+//Chat routes
+// router.get('/chat/users',verifyToken, getUsers);
+// router.get('/messages/:userId',verifyToken, getMessages);
+// router.post('/messages', verifyToken, sendMessage);
+// router.put('/messages/:messageId/read',verifyToken, markAsRead);
 
 export default router;

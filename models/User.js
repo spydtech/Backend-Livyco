@@ -108,7 +108,7 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     enum: ['client', 'user'],
-    default: 'client',
+    default: 'user',
     required: true
   },
   gender: {
@@ -143,7 +143,22 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['not allocated', 'allocated', 'terminated'],
     default: 'not allocated'
-  }
+  },
+// In your User model
+lastMessage: { 
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Message'
+},
+lastMessageAt: { 
+  type: Date 
+},
+socketId: { 
+  type: String 
+},
+online: { 
+  type: Boolean, 
+  default: false 
+}
 },{
   timestamps: true,
   toJSON: {

@@ -98,6 +98,7 @@
 // import { existsSync } from 'fs';
 // import Admin from "./models/Admin.js";
 
+
 // dotenv.config();
 
 // const app = express();
@@ -106,14 +107,24 @@
 
 // // Middlewares
 // app.use(cors({
-//   origin: true,
+//   origin: ["https://api.livyco.com", "http://localhost:5173", "https://livyco.com", "http://82.29.161.78:5000"], // Replace with your actual frontend URL
 //   credentials: true,
 //   allowedHeaders: ["Content-Type", "Authorization"],
-//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//   methods: ["GET", "POST", "PUT",'PATCH', "DELETE", "OPTIONS"],
 //   exposedHeaders: ["Authorization"]
 // }));
 
-// app.use(express.json());
+// app.use(express.json()); // For parsing application/json
+// app.use(express.urlencoded({ extended: true })); 
+// app.use((err, req, res, next) => {
+//   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+//     return res.status(400).json({ 
+//       success: false, 
+//       message: 'Invalid JSON format' 
+//     });
+//   }
+//   next();
+// });
 
 // // Routes
 // app.use("/api/auth", authRoutes);
@@ -122,40 +133,6 @@
 // app.get("/health", (req, res) => {
 //   res.status(200).json({ status: "OK" });
 // });
-
-// // Global error handler
-// app.use((err, req, res, next) => {
-//   console.error(err.stack);
-//   res.status(500).json({
-//     success: false,
-//     message: "Internal server error",
-//     error: err.message
-//   });
-// });
-
-// // MongoDB connection
-// mongoose.connect(process.env.MONGO_URI)
-
-//   .then(async () => {
-
-//     console.log("✅ MongoDB connected");
-//     // Ensure the database connection is established before starting the server
-//     // Check if the Admin model is defined
-
-
-//     // Start server only after DB connection
-//     app.listen(process.env.PORT || 5000, () => {
-//       console.log("🚀 Server running on port", process.env.PORT || 5000);
-//     });
-
-//     // Initialize admin only after DB is connected
-//     await initializeAdmin();
-
-//   })
-//   .catch((err) => {
-//   // Handle MongoDB connection errors
-//     console.error("❌ MongoDB connection error:", err);
-//   });
 
 // // Superadmin creation logic
 // const initializeAdmin = async () => {
@@ -179,34 +156,127 @@
 //   }
 // };
 
+// // MongoDB connection with improved options
+// const connectDB = async () => {
+//   try {
+//     await mongoose.connect(process.env.MONGO_URI, {
+//       useNewUrlParser: true,
+//       useUnifiedTopology: true,
+//       serverSelectionTimeoutMS: 5000,
+//       socketTimeoutMS: 45000
+//     });
+//     console.log("✅ MongoDB connected");
+//     await initializeAdmin();
+//   } catch (err) {
+//     console.error("❌ MongoDB connection error:", err);
+//     process.exit(1);
+//   }
+// };
+
+// // Start server only after DB connection
+// connectDB().then(() => {
+//   app.listen(process.env.PORT || 5000, () => {
+//     console.log(`🚀 Server running on port ${process.env.PORT || 5000}`);
+//   });
+// });
+
+// // Global error handler
+// app.use((err, req, res, next) => {
+//   console.error(err.stack);
+//   res.status(500).json({
+//     success: false,
+//     message: "Internal server error",
+//     error: err.message
+//   });
+// });
+
+
+
+
+
 
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import { Server } from "socket.io";
+import http from "http";
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from './routes/adminRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
 import { existsSync } from 'fs';
 import Admin from "./models/Admin.js";
-
+import User from "./models/User.js";
 
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
 const path = './livyco-b65f5-firebase-adminsdk-fbsvc-bdf4b116db.json';
 console.log('File exists:', existsSync(path));
 
+// Initialize Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: ["https://api.livyco.com", "http://localhost:5173", "https://livyco.com", "http://82.29.161.78:5000"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    credentials: true
+  }
+});
+
+// Store connected users
+const connectedUsers = {};
+
+// Socket.IO connection handler
+io.on('connection', (socket) => {
+  console.log('New client connected:', socket.id);
+
+  // Handle user authentication
+  socket.on('authenticate', (userId) => {
+    connectedUsers[userId] = socket.id;
+    console.log(`User ${userId} connected with socket ${socket.id}`);
+    
+    // Update user's online status
+    User.findByIdAndUpdate(userId, { 
+      online: true, 
+      socketId: socket.id 
+    })
+    .catch(err => console.error('Error updating user status:', err));
+  });
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    const userId = Object.keys(connectedUsers).find(
+      key => connectedUsers[key] === socket.id
+    );
+    
+    if (userId) {
+      delete connectedUsers[userId];
+      console.log(`User ${userId} disconnected`);
+      
+      // Update user's online status
+      User.findByIdAndUpdate(userId, { 
+        online: false, 
+        socketId: null 
+      })
+      .catch(err => console.error('Error updating user status:', err));
+    }
+  });
+});
+
 // Middlewares
 app.use(cors({
-  origin: ["https://api.livyco.com", "http://localhost:5173", "https://livyco.com", "http://82.29.161.78:5000"], // Replace with your actual frontend URL
+  origin: ["https://api.livyco.com", "http://localhost:5173", "https://livyco.com", "http://82.29.161.78:5000"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
-  methods: ["GET", "POST", "PUT",'PATCH', "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   exposedHeaders: ["Authorization"]
 }));
 
-app.use(express.json()); // For parsing application/json
-app.use(express.urlencoded({ extended: true })); 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Error handler for JSON parsing
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     return res.status(400).json({ 
@@ -217,10 +287,16 @@ app.use((err, req, res, next) => {
   next();
 });
 
+// Attach io and connectedUsers to app for use in controllers
+app.set('io', io);
+app.set('connectedUsers', connectedUsers);
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/chat", chatRoutes);
 
+// Health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });
 });
@@ -266,7 +342,7 @@ const connectDB = async () => {
 
 // Start server only after DB connection
 connectDB().then(() => {
-  app.listen(process.env.PORT || 5000, () => {
+  server.listen(process.env.PORT || 5000, () => {
     console.log(`🚀 Server running on port ${process.env.PORT || 5000}`);
   });
 });
@@ -280,3 +356,5 @@ app.use((err, req, res, next) => {
     error: err.message
   });
 });
+
+export { app, server };

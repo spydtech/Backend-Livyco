@@ -552,28 +552,43 @@ export const getCompletePropertyData = async (req, res) => {
 };
 
 
-
 export const getAllClientProperties = async (req, res) => {
   try {
-   
-
-    const properties = await Property.find({}); // Find all properties
+    const properties = await Property.find({});
 
     if (!properties || properties.length === 0) {
-      return res.status(200).json({ // 200 OK with empty array for no properties
+      return res.status(200).json({
         success: true,
         message: "No properties found in the system.",
         data: []
       });
     }
 
-    // Fetch all related data for each property concurrently, just like in getCompletePropertyData
     const completePropertiesData = await Promise.all(properties.map(async (prop) => {
+      // First find the user by clientId (which is the string ID like LYVC00013)
+      const user = await User.findOne({ clientId: prop.clientId })
+        .select('name phone email profileImage clientId')
+        .lean();
+
+      if (!user) {
+        console.warn(`Client with clientId ${prop.clientId} not found`);
+        return null; // Skip this property if owner not found
+      }
+
       const [pgProperty, media, roomData] = await Promise.all([
         PGProperty.findOne({ propertyId: prop._id }),
         Media.findOne({ propertyId: prop._id }),
         Room.findOne({ propertyId: prop._id })
       ]);
+
+      const formattedClient = {
+        _id: user._id,
+        clientId: user.clientId,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        profileImage: user.profileImage
+      };
 
       const formattedRoomTypes = roomData?.roomTypes?.map(roomType => ({
         _id: roomType._id,
@@ -595,7 +610,7 @@ export const getAllClientProperties = async (req, res) => {
       return {
         property: {
           _id: prop._id,
-          clientId: prop.clientId, // Include clientId so admin knows who owns it
+          clientId: prop.clientId,
           city: prop.city,
           name: prop.name,
           locality: prop.locality,
@@ -605,7 +620,7 @@ export const getAllClientProperties = async (req, res) => {
           cgstNo: prop.cgstNo,
           sgstNo: prop.sgstNo,
           location: prop.location,
-          status: prop.status, // Admins will need to see the status
+          status: prop.status,
           approvedBy: prop.approvedBy,
           rejectedBy: prop.rejectedBy,
           rejectionReason: prop.rejectionReason,
@@ -613,6 +628,7 @@ export const getAllClientProperties = async (req, res) => {
           createdAt: prop.createdAt,
           updatedAt: prop.updatedAt
         },
+        owner: formattedClient, // This now contains all owner info
         pgProperty: pgProperty || null,
         media: media || { images: [], videos: [] },
         rooms: {
@@ -624,10 +640,13 @@ export const getAllClientProperties = async (req, res) => {
       };
     }));
 
+    // Filter out any null entries from properties where owner wasn't found
+    const filteredProperties = completePropertiesData.filter(prop => prop !== null);
+
     return res.status(200).json({
       success: true,
       message: "All properties fetched successfully for admin.",
-      data: completePropertiesData
+      data: filteredProperties
     });
 
   } catch (error) {
@@ -639,6 +658,93 @@ export const getAllClientProperties = async (req, res) => {
     });
   }
 };
+
+// export const getAllClientProperties = async (req, res) => {
+//   try {
+   
+
+//     const properties = await Property.find({}); // Find all properties
+
+//     if (!properties || properties.length === 0) {
+//       return res.status(200).json({ // 200 OK with empty array for no properties
+//         success: true,
+//         message: "No properties found in the system.",
+//         data: []
+//       });
+//     }
+
+//     // Fetch all related data for each property concurrently, just like in getCompletePropertyData
+//     const completePropertiesData = await Promise.all(properties.map(async (prop) => {
+//       const [pgProperty, media, roomData] = await Promise.all([
+//         PGProperty.findOne({ propertyId: prop._id }),
+//         Media.findOne({ propertyId: prop._id }),
+//         Room.findOne({ propertyId: prop._id })
+//       ]);
+
+//       const formattedRoomTypes = roomData?.roomTypes?.map(roomType => ({
+//         _id: roomType._id,
+//         type: roomType.type,
+//         label: roomType.label,
+//         capacity: roomType.capacity,
+//         availableCount: roomType.availableCount,
+//         price: roomType.price,
+//         deposit: roomType.deposit,
+//         amenities: roomType.amenities,
+//         images: roomType.images
+//       })) || [];
+
+//       const formattedFloorConfig = roomData?.floorConfig ? {
+//         selectedRooms: roomData.floorConfig.selectedRooms,
+//         floors: roomData.floorConfig.floors
+//       } : null;
+
+//       return {
+//         property: {
+//           _id: prop._id,
+//           clientId: prop.clientId, // Include clientId so admin knows who owns it
+//           city: prop.city,
+//           name: prop.name,
+//           locality: prop.locality,
+//           street: prop.street,
+//           registrationId: prop.registrationId,
+//           gstNo: prop.gstNo,
+//           cgstNo: prop.cgstNo,
+//           sgstNo: prop.sgstNo,
+//           location: prop.location,
+//           status: prop.status, // Admins will need to see the status
+//           approvedBy: prop.approvedBy,
+//           rejectedBy: prop.rejectedBy,
+//           rejectionReason: prop.rejectionReason,
+//           revisionNotes: prop.revisionNotes,
+//           createdAt: prop.createdAt,
+//           updatedAt: prop.updatedAt
+//         },
+//         pgProperty: pgProperty || null,
+//         media: media || { images: [], videos: [] },
+//         rooms: {
+//           roomTypes: formattedRoomTypes,
+//           floorConfig: formattedFloorConfig,
+//           createdAt: roomData?.createdAt,
+//           updatedAt: roomData?.updatedAt
+//         }
+//       };
+//     }));
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "All properties fetched successfully for admin.",
+//       data: completePropertiesData
+//     });
+
+//   } catch (error) {
+//     console.error("Error fetching all properties for admin:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch properties for admin.",
+//       error: error.message
+//     });
+//   }
+// };
 
 // Approve property with enhanced functionality
 // Enhanced approve property function
@@ -854,26 +960,43 @@ export const requestRevision = async (req, res) => {
 
 export const deleteProperty = async (req, res) => {
   try {
-    const { id } = req.params; // Property ID from URL
-    const { clientId } = req.user; // Client ID from authenticated user
-    if (!clientId) {
-      return res.status(400).json({ success: false, message: "Missing clientId" });
-    }
-    // Check if property exists
-    const property = await Property.findOne({ _id: id, clientId });
+    const { propertyId } = req.params;
+    const { clientId } = req.user; // Assuming you have user info in req.user
+
+    // 1. Find and verify property exists and belongs to user
+    const property = await Property.findOne({ 
+      _id: propertyId,
+      owner: clientId 
+    });
+
     if (!property) {
-      return res.status(404).json({ success: false, message: "Property not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Property not found or not owned by user"
+      });
     }
-    // Delete the property
-    await Property.deleteOne({ _id: id, clientId });
-    // Optionally, delete related PGProperty, Media, and Room documents
-    // await PGProperty.deleteOne({ propertyId: id });
-    // await Media.deleteOne({ propertyId: id });
-    // await Room.deleteOne({ propertyId: id });
-    res.status(200).json({ success: true, message: "Property deleted successfully" });
-  } catch (error) { 
-    console.error("Error deleting property:", error);
-    res.status(500).json({ success: false, message: "Failed to delete property", error: error.message });
+
+    // 2. Delete associated records
+    await Promise.all([
+      Media.deleteMany({ propertyId }),
+      Room.deleteMany({ propertyId }),
+      PGProperty.deleteMany({ propertyId })
+    ]);
+
+    // 3. Delete the property
+    await Property.deleteOne({ _id: propertyId });
+
+    return res.status(200).json({
+      success: true,
+      message: "Property deleted successfully"
+    });
+
+  } catch (error) {
+    console.error('Error deleting property:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
   }
 };
 
