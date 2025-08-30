@@ -44,7 +44,7 @@ import { savePGProperty, getPGProperty, deletePGProperty } from "../controllers/
 import { protectAdmin, authorizeAdmin } from "../middlewares/authMiddleware.js";
 
 //Client imports
-import { createBooking, getBookingsByProperty, approveBooking, rejectBooking, getallBookings } from "../controllers/bookingController.js";
+import { createBooking, cancelBooking, getBookingsByProperty, getUserBookings, approveBooking, rejectBooking, getallBookings, checkRoomAvailability } from "../controllers/bookingController.js";
 
 //chat imports
 // import { 
@@ -65,9 +65,13 @@ const router = express.Router();
 // Booking routes
 router.post("/bookings", verifyToken, createBooking);
 router.get("/bookings/property", verifyToken,  getBookingsByProperty);
+router.get("/bookings/user", verifyToken, getUserBookings);
 router.patch("/bookings/:bookingId/approve", verifyToken, approveBooking);
 router.patch("/bookings/:bookingId/reject", verifyToken, rejectBooking);
 router.get("/bookings", verifyToken,  getallBookings); // Admin route to get all bookings
+router.post("/bookings/check-availability", checkRoomAvailability);
+router.post("/bookings/:bookingId/cancel", verifyToken, cancelBooking);
+
 
 
 

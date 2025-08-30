@@ -204,6 +204,7 @@ import http from "http";
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from './routes/adminRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 import { existsSync } from 'fs';
 import Admin from "./models/Admin.js";
 import User from "./models/User.js";
@@ -295,6 +296,7 @@ app.set('connectedUsers', connectedUsers);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api", paymentRoutes); // payment routes
 
 // Health check endpoint
 app.get("/health", (req, res) => {

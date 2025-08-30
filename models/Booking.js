@@ -93,6 +93,124 @@
 // const Booking = mongoose.model('Booking', bookingSchema);
 // export default Booking;
 
+// import mongoose from 'mongoose';
+
+// const bookingSchema = new mongoose.Schema({
+//   userId: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: 'User',
+//     required: true,
+//   },
+//   clientId: {
+//     type: String,
+//     required: true,
+//   },
+//   propertyId: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: 'Property',
+//     required: true,
+//   },
+//   roomType: {
+//     typeId: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       required: true,
+//     },
+//     name: {
+//       type: String,
+//       required: true,
+//     },
+//     capacity: {
+//       type: Number,
+//       required: true,
+//     },
+//   },
+//   room: {
+//     number: {
+//       type: String,
+//       required: true,
+//     },
+//     floor: {
+//       type: Number,
+//       required: true,
+//     },
+//     bed: {
+//       type: String,
+//       required: true,
+//     },
+//   },
+//   moveInDate: {
+//     type: Date,
+//     required: true,
+//   },
+//   moveOutDate: {
+//     type: Date,
+//   },
+//   pricing: {
+//     monthlyRent: {
+//       type: Number,
+//       required: true,
+//     },
+//     securityDeposit: {
+//       type: Number,
+//       required: true,
+//     },
+//     maintenanceFee: {
+//       type: Number,
+//       default: 0,
+//     },
+//   },
+//   bookingStatus: {
+//     type: String,
+//     enum: ['pending', 'approved', 'confirmed', 'cancelled', 'checked_in', 'checked_out', 'rejected', 'terminated'],
+//     default: 'pending',
+//   },
+//   paymentStatus: {
+//     type: String,
+//     enum: ['pending', 'partial', 'paid', 'refunded', 'failed'],
+//     default: 'pending',
+//   },
+//   amenitiesIncluded: [String],
+//   specialRequests: String,
+//   personCount: {
+//     type: Number,
+//     default: 1
+//   },
+//   approvedBy: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: 'User',
+//   },
+//   approvedAt: {
+//     type: Date,
+//   },
+//   rejectedBy: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: 'User',
+//   },
+//   rejectionReason: {
+//     type: String,
+//   },
+//   rejectedAt: {
+//     type: Date,
+//   }
+// }, { timestamps: true });
+
+// // Updated compound index to include bed number
+// bookingSchema.index({
+//   propertyId: 1,
+//   'room.number': 1,
+//   'room.bed': 1,
+//   moveInDate: 1,
+//   bookingStatus: 1
+// }, { 
+//   unique: true,
+//   partialFilterExpression: {
+//     bookingStatus: { $in: ['pending', 'approved', 'confirmed', 'checked_in'] }
+//   }
+// });
+
+// const Booking = mongoose.model('Booking', bookingSchema);
+// export default Booking;
+
 
 import mongoose from 'mongoose';
 
@@ -112,8 +230,8 @@ const bookingSchema = new mongoose.Schema({
     required: true,
   },
   roomType: {
-    typeId: {
-      type: mongoose.Schema.Types.ObjectId,
+    type: {
+      type: String,
       required: true,
     },
     name: {
@@ -125,8 +243,12 @@ const bookingSchema = new mongoose.Schema({
       required: true,
     },
   },
-  room: {
-    number: {
+  roomDetails: [{
+    roomIdentifier: {
+      type: String,
+      required: true,
+    },
+    sharingType: {
       type: String,
       required: true,
     },
@@ -134,13 +256,34 @@ const bookingSchema = new mongoose.Schema({
       type: Number,
       required: true,
     },
-  },
+    roomNumber: {
+      type: String,
+      required: true,
+    },
+    bed: {
+      type: String,
+      required: true,
+    }
+  }],
   moveInDate: {
     type: Date,
     required: true,
   },
-  moveOutDate: {
-    type: Date,
+  personCount: {
+    type: Number,
+    required: true,
+  },
+  customerDetails: {
+    name: String,
+    age: Number,
+    gender: String,
+    mobile: String,
+    email: String,
+    idProofType: String,
+    idProofNumber: String,
+    idProofFile: String,
+    purpose: String,
+    saveForFuture: Boolean
   },
   pricing: {
     monthlyRent: {
@@ -156,35 +299,43 @@ const bookingSchema = new mongoose.Schema({
       default: 0,
     },
   },
+  paymentInfo: {
+    amountPaid: {
+      type: Number,
+      default: 0
+    },
+    paymentMethod: {
+      type: String,
+      default: 'razorpay'
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'partial', 'completed', 'refunded', 'failed'],
+      default: 'pending'
+    },
+    transactionId: String,
+    paymentDate: Date
+  },
   bookingStatus: {
     type: String,
     enum: ['pending', 'confirmed', 'cancelled', 'checked_in', 'checked_out', 'terminated'],
     default: 'pending',
   },
-  paymentStatus: {
-    type: String,
-    enum: ['pending', 'partial', 'paid', 'refunded', 'failed'],
-    default: 'pending',
-  },
   amenitiesIncluded: [String],
   specialRequests: String,
-
-   approvedBy: {
+  approvedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'client', // or 'Client' depending on your auth model
+    ref: 'client',
   },
   approvedAt: {
     type: Date,
   }
 }, { timestamps: true });
 
-// ✅ Optional compound index (prevents double booking same room, same date)
-bookingSchema.index({
-  clientId: 1,
-  propertyId: 1,
-  'room.number': 1,
-  moveInDate: 1
-}, { unique: true });
+// Index for efficient querying
+bookingSchema.index({ userId: 1, createdAt: -1 });
+bookingSchema.index({ propertyId: 1, bookingStatus: 1 });
+bookingSchema.index({ 'roomDetails.roomIdentifier': 1, moveInDate: 1 });
 
 const Booking = mongoose.model('Booking', bookingSchema);
 export default Booking;
