@@ -591,7 +591,8 @@ export const getUserBookings = async (req, res) => {
       message: 'Internal server error',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
-  }
+  };
+};
 
 export const approveBooking = async (req, res) => {
   try {
