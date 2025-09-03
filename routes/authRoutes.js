@@ -44,7 +44,13 @@ import { savePGProperty, getPGProperty, deletePGProperty } from "../controllers/
 import { protectAdmin, authorizeAdmin } from "../middlewares/authMiddleware.js";
 
 //Client imports
-import { createBooking, cancelBooking, getBookingsByProperty, getUserBookings, approveBooking, rejectBooking, getallBookings, checkRoomAvailability } from "../controllers/bookingController.js";
+import { createBooking, 
+  cancelBooking, 
+  getBookingsByProperty, 
+  getUserBookings, 
+  approveBooking, 
+  rejectBooking, getallBookings, 
+  checkRoomAvailability, getAvailableRoomsAndBeds, getAvailableBedsByRoomType } from "../controllers/bookingController.js";
 
 //chat imports
 // import { 
@@ -71,6 +77,12 @@ router.patch("/bookings/:bookingId/reject", verifyToken, rejectBooking);
 router.get("/bookings", verifyToken,  getallBookings); // Admin route to get all bookings
 router.post("/bookings/check-availability", checkRoomAvailability);
 router.post("/bookings/:bookingId/cancel", verifyToken, cancelBooking);
+// Get available rooms and beds by floor
+router.get('/bookings/availability/property/:propertyId', verifyToken, getAvailableRoomsAndBeds);
+
+// Get available beds by specific room type
+router.get('/bookings/availability/property/:propertyId/beds', verifyToken, getAvailableBedsByRoomType);
+
 
 
 
