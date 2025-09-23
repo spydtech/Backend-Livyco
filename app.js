@@ -206,6 +206,9 @@ import adminRoutes from './routes/adminRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import concernRoutes from './routes/concernRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import menuRoutes from './routes/menuRoutes.js';
+// import vacateRoutes from './routes/vacateRoutes.js';
+import wishlistRoutes from './routes/wishlistRoutes.js';
 import { existsSync } from 'fs';
 import Admin from "./models/Admin.js";
 import User from "./models/User.js";
@@ -299,6 +302,9 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api", paymentRoutes); // payment routes
 app.use("/api/concerns", concernRoutes);
+app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/menu", menuRoutes);
+// app.use("/api/vacate", vacateRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {

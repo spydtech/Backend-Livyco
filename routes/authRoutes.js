@@ -44,13 +44,34 @@ import { savePGProperty, getPGProperty, deletePGProperty } from "../controllers/
 import { protectAdmin, authorizeAdmin } from "../middlewares/authMiddleware.js";
 
 //Client imports
-import { createBooking, 
+import {
+   createBooking, 
   cancelBooking, 
   getBookingsByProperty, 
   getUserBookings, 
+  getBookingById, 
   approveBooking, 
   rejectBooking, getallBookings, 
-  checkRoomAvailability, getAvailableRoomsAndBeds, getAvailableBedsByRoomType } from "../controllers/bookingController.js";
+  checkRoomAvailability, getAvailableRoomsAndBeds, getAvailableBedsByRoomType, getAllAvailableBeds
+  } from "../controllers/bookingController.js";
+  import { 
+  // requestVacate, 
+  // getVacateRequests, 
+  // processVacateRequest, 
+  // completeRefund, 
+  // getVacateStatus 
+   requestVacate,
+  getVacateRequests,
+  getVacateRequestById,
+  processDuePayment,
+  approveVacateRequest,
+  initiateRefund,
+  completeRefund,
+  getVacateStatus,
+  getUserVacateRequests,
+  addDeduction
+} from '../controllers/vacateController.js';
+
 
 //chat imports
 // import { 
@@ -72,18 +93,39 @@ const router = express.Router();
 router.post("/bookings", verifyToken, createBooking);
 router.get("/bookings/property", verifyToken,  getBookingsByProperty);
 router.get("/bookings/user", verifyToken, getUserBookings);
+router.get('/bookings/:bookingId', verifyToken, getBookingById);
 router.patch("/bookings/:bookingId/approve", verifyToken, approveBooking);
 router.patch("/bookings/:bookingId/reject", verifyToken, rejectBooking);
 router.get("/bookings", verifyToken,  getallBookings); // Admin route to get all bookings
 router.post("/bookings/check-availability", checkRoomAvailability);
 router.post("/bookings/:bookingId/cancel", verifyToken, cancelBooking);
+// Add this to your routes
+router.get('/bookings/availability/property/:propertyId/all-beds',verifyToken, getAllAvailableBeds);
 // Get available rooms and beds by floor
 router.get('/bookings/availability/property/:propertyId', verifyToken, getAvailableRoomsAndBeds);
 
 // Get available beds by specific room type
 router.get('/bookings/availability/property/:propertyId/beds', verifyToken, getAvailableBedsByRoomType);
 
+//vacate routes
+// Vacate routes - make sure they're under /api/auth/
+// router.post('/vacate/:bookingId/request', verifyToken, requestVacate);
+// router.get('/vacate/:bookingId/status', verifyToken, getVacateStatus);
+// router.get('/vacate/requests', verifyToken, getVacateRequests);
+// router.post('/vacate/:bookingId/process', verifyToken, processVacateRequest);
+// router.post('/vacate/:bookingId/complete-refund', verifyToken, completeRefund);
 
+// Vacate routes
+router.post('/vacate/:bookingId/request', verifyToken, requestVacate);
+router.get('/vacate/requests', verifyToken, getVacateRequests);
+router.get('/vacate/:requestId', verifyToken, getVacateRequestById);
+router.post('/vacate/:requestId/process-due-payment', verifyToken, processDuePayment);
+router.put('/vacate/:requestId/approve', verifyToken, approveVacateRequest);
+router.post('/vacate/:requestId/initiate-refund', verifyToken, initiateRefund);
+router.post('/vacate/:requestId/complete-refund', verifyToken, completeRefund);
+router.get('/vacate/:bookingId/status', verifyToken, getVacateStatus);
+router.get('/vacate/user/requests', verifyToken, getUserVacateRequests);
+router.post('/vacate/:requestId/add-deduction', verifyToken, addDeduction);
 
 
 

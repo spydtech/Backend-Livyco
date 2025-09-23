@@ -1,6 +1,7 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import Booking from '../models/Booking.js';
+import VacateRequest from '../models/VacateRequest.js';
 
 // Initialize Razorpay instance
 const razorpay = new Razorpay({
@@ -209,6 +210,173 @@ export const refundPayment = async (req, res) => {
       success: false,
       message: 'Failed to process refund',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+
+
+// Send payment request to user
+export const sendPaymentRequest = async (req, res) => {
+  try {
+    const { userId, amount, description, dueDate, bookingId } = req.body;
+    
+    if (!userId || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID and amount are required'
+      });
+    }
+
+    // For now, we'll just return success as the full implementation
+    // would require User model and notification services
+    console.log('Payment request sent to user:', { userId, amount, description, dueDate, bookingId });
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment request sent successfully',
+      data: {
+        userId,
+        amount,
+        description,
+        dueDate,
+        bookingId
+      }
+    });
+
+  } catch (error) {
+    console.error('Send payment request error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send payment request',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+
+//get all payments of clients for a booking by propertyid and bookingid
+export const getClientPaymentsForBooking = async (req, res) => {
+  try {
+    const { propertyId, bookingId } = req.params;
+    
+    if (!propertyId || !bookingId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Property ID and Booking ID are required'
+      });
+    }
+    
+    const booking = await Booking.findOne({ _id: bookingId, propertyId })
+      .select('payments')
+      .lean();
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found for the given property'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      payments: booking.payments || []
+    });
+    
+  }
+  catch (error) {
+    console.error('Get client payments for booking error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch client payments for booking',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Get payment history for a booking
+// export const getPaymentHistory = async (req, res) => {
+//   try {
+//     const { bookingId } = req.params;
+
+//     if (!bookingId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Booking ID is required'
+//       });
+//     }
+
+//     const booking = await Booking.findById(bookingId)
+//       .select('payments pricing outstandingAmount')
+//       .lean();
+
+//     if (!booking) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Booking not found'
+//       });
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       payments: booking.payments,
+//       outstandingAmount: booking.outstandingAmount,
+//       totalAmount: booking.pricing.monthlyRent + booking.pricing.securityDeposit + booking.pricing.maintenanceFee
+//     });
+
+//   } catch (error) {
+//     console.error('Get payment history error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Failed to fetch payment history',
+//       error: process.env.NODE_ENV === 'development' ? error.message : undefined
+//     });
+//   }
+// };
+
+
+
+// controllers/paymentController.js
+
+export const getPaymentHistory = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    if (!bookingId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking ID is required'
+      });
+    }
+
+    // Find the booking and its payments
+    const booking = await Booking.findById(bookingId)
+      .select('payments pricing outstandingAmount userId propertyId customerDetails')
+      .lean();
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      payments: booking.payments || [],
+      outstandingAmount: booking.outstandingAmount,
+      totalAmount: (booking.pricing.monthlyRent || 0) + 
+                   (booking.pricing.securityDeposit || 0) +
+                   (booking.pricing.maintenanceFee || 0),
+      userId: booking.userId,
+      propertyId: booking.propertyId,
+      customerDetails: booking.customerDetails
+    });
+
+  } catch (error) {
+    console.error('Get payment history error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch payment history'
     });
   }
 };

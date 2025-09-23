@@ -14,4 +14,8 @@ router.patch("/properties/:id/reject", protectAdmin, authorizeAdmin(['admin', 'r
 
 
 
+
+
+
+
 export default router;
