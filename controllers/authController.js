@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
 import { cloudinary } from "../config/cloudinaryConfig.js";
+import crypto from 'crypto';
 
 // Helper function to delete uploaded files on error
 // Helper function to delete uploaded files on error
@@ -18,6 +19,50 @@ const cleanupCloudinaryUpload = async (publicId) => {
   } catch (err) {
     console.error('Error cleaning up Cloudinary file:', err);
   }
+};
+
+// export const sendOTP = async (req, res) => {
+//   const { phone } = req.body;
+
+//   if (!phone) {
+//     return res.status(400).json({ 
+//       success: false, 
+//       message: "Phone number is required" 
+//     });
+//   }
+
+//   try {
+//     const user = await User.findOne({ phone });
+
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Phone number not registered. Please register first."
+//       });
+//     }
+
+//     // In a real app, you would send OTP here
+//     // For now, we'll just return success
+//     return res.status(200).json({
+//       success: true,
+//       message: "OTP sent successfully",
+//       phone: user.phone
+//     });
+
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to process OTP request",
+//       error: error.message
+//     });
+//   }
+// };
+
+const otpStore = new Map();
+
+// Helper function to generate OTP
+const generateOTP = () => {
+  return crypto.randomInt(100000, 999999).toString();
 };
 
 export const sendOTP = async (req, res) => {
@@ -40,12 +85,27 @@ export const sendOTP = async (req, res) => {
       });
     }
 
-    // In a real app, you would send OTP here
-    // For now, we'll just return success
+    // Generate OTP
+    const otp = generateOTP();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    // Store OTP
+    otpStore.set(phone, { otp, expiresAt });
+
+    // TODO: Integrate with SMS service (Twilio, MSG91, etc.)
+    console.log(`OTP for ${phone}: ${otp}`); // Remove this in production
+
     return res.status(200).json({
       success: true,
       message: "OTP sent successfully",
-      phone: user.phone
+      user: {
+        id: user._id,
+        name: user.name,
+        phone: user.phone,
+        location: user.location,
+        clientId: user.clientId,
+        role: user.role
+      }
     });
 
   } catch (error) {
@@ -56,14 +116,90 @@ export const sendOTP = async (req, res) => {
     });
   }
 };
+// export const verifyOTP = async (req, res) => {
+//   const { phone, otp } = req.body;
+
+//   try {
+//     // In a real app, verify OTP with Firebase
+//     // For now, we'll assume OTP is valid
+    
+//     const user = await User.findOne({ phone });
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "User not found"
+//       });
+//     }
+
+//      const token = generateToken(user);
+
+//     return res.status(200).json({
+//       success: true,
+//       message: 'Login successful',
+//       token,
+//       user: {
+//         id: user._id,
+//         name: user.name,
+//         phone: user.phone,
+//         location: user.location,
+//         clientId: user.clientId,
+//         role: user.role
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('Login error:', error);
+//     return res.status(500).json({
+//       success: false,
+//       message: 'Login failed',
+//       error: error.message
+//     });
+//   }
+// };
 
 export const verifyOTP = async (req, res) => {
   const { phone, otp } = req.body;
 
   try {
-    // In a real app, verify OTP with Firebase
-    // For now, we'll assume OTP is valid
+    // Validate input
+    if (!phone || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone and OTP are required"
+      });
+    }
+
+    // Check if OTP exists and is valid
+    const storedData = otpStore.get(phone);
     
+    if (!storedData) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired or not found. Please request a new OTP."
+      });
+    }
+
+    // Check if OTP expired
+    if (Date.now() > storedData.expiresAt) {
+      otpStore.delete(phone);
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired. Please request a new OTP."
+      });
+    }
+
+    // Verify OTP
+    if (storedData.otp !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP. Please try again."
+      });
+    }
+
+    // OTP verified successfully - remove from store
+    otpStore.delete(phone);
+
+    // Find user
     const user = await User.findOne({ phone });
     if (!user) {
       return res.status(404).json({
@@ -72,7 +208,8 @@ export const verifyOTP = async (req, res) => {
       });
     }
 
-     const token = generateToken(user);
+    // Generate JWT token
+    const token = generateToken(user);
 
     return res.status(200).json({
       success: true,
@@ -97,7 +234,6 @@ export const verifyOTP = async (req, res) => {
     });
   }
 };
-
 
   // if (user.role === 'client') {
   //   baseResponse.businessName = user.businessName;
@@ -408,7 +544,7 @@ export const updateUserProfile = async (req, res) => {
         });
       }
 
-      const { name, location, email, gender, dob } = req.body;
+      const { name, location, email, gender, dob, phone, aadhaarNumber,aadharPhoto, userType, } = req.body;
       const user = await User.findById(req.user.id);
       
       if (!user) {
@@ -454,7 +590,11 @@ export const updateUserProfile = async (req, res) => {
           clientId: updatedUser.clientId,
           role: updatedUser.role,
           gender: updatedUser.gender,
-          dob: updatedUser.dob
+          dob: updatedUser.dob,
+          aadhaarNumber: updatedUser.aadhaarNumber,
+          aadharPhoto: updatedUser.aadharPhoto,
+          userType: updatedUser.userType,
+
         }
       });
     });

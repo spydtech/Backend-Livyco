@@ -961,12 +961,17 @@ export const requestRevision = async (req, res) => {
 export const deleteProperty = async (req, res) => {
   try {
     const { propertyId } = req.params;
-    const { clientId } = req.user; // Assuming you have user info in req.user
+    const { clientId } = req.user; // from auth middleware
+// const userId = req.user._id || req.user.clientId;
+    // 1. Verify property exists in `properties` and belongs to user
+    console.log("🔹 Attempting to delete property");
+    console.log("Property ID from params:", propertyId);
+    console.log("Client ID from token:", clientId);
 
-    // 1. Find and verify property exists and belongs to user
-    const property = await Property.findOne({ 
+    const property = await Property.findOne({
       _id: propertyId,
-      owner: clientId 
+      clientId: clientId,
+     
     });
 
     if (!property) {
@@ -980,10 +985,10 @@ export const deleteProperty = async (req, res) => {
     await Promise.all([
       Media.deleteMany({ propertyId }),
       Room.deleteMany({ propertyId }),
-      PGProperty.deleteMany({ propertyId })
+      PGProperty.deleteMany({ propertyId }) // extra data linked to property
     ]);
 
-    // 3. Delete the property
+    // 3. Delete the property itself
     await Property.deleteOne({ _id: propertyId });
 
     return res.status(200).json({
@@ -992,13 +997,14 @@ export const deleteProperty = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error deleting property:', error);
+    console.error("❌ Error deleting property:", error);
     return res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: "Internal server error"
     });
   }
 };
+
 
 
 

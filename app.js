@@ -206,6 +206,7 @@ import adminRoutes from './routes/adminRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import concernRoutes from './routes/concernRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import bankAccountRoutes from './routes/bankAccountsRoutes.js';
 import menuRoutes from './routes/menuRoutes.js';
 // import vacateRoutes from './routes/vacateRoutes.js';
 import wishlistRoutes from './routes/wishlistRoutes.js';
@@ -304,6 +305,7 @@ app.use("/api", paymentRoutes); // payment routes
 app.use("/api/concerns", concernRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/menu", menuRoutes);
+app.use("/api/bank-accounts", bankAccountRoutes);
 // app.use("/api/vacate", vacateRoutes);
 
 // Health check endpoint
