@@ -21,6 +21,14 @@ const cleanupCloudinaryUpload = async (publicId) => {
   }
 };
 
+const otpStore = new Map();
+
+// Helper function to generate OTP
+const generateOTP = () => {
+  return crypto.randomInt(100000, 999999).toString();
+};
+
+
 export const sendOTP = async (req, res) => {
   const { phone } = req.body;
 
@@ -41,15 +49,34 @@ export const sendOTP = async (req, res) => {
       });
     }
 
-    // In a real app, you would send OTP here
-    // For now, we'll just return success
+    // Generate OTP
+    const otp = generateOTP();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    // Store OTP
+    otpStore.set(phone, { otp, expiresAt });
+
+    // TODO: Integrate with SMS service (Twilio, MSG91, etc.)
+    console.log(`OTP for ${phone}: ${otp}`); // Remove this in production
+
+    // In production, send SMS here
+    // await sendSMS(phone, `Your Livyco OTP is: ${otp}`);
+
     return res.status(200).json({
       success: true,
       message: "OTP sent successfully",
-      phone: user.phone
+      user: {
+        id: user._id,
+        name: user.name,
+        phone: user.phone,
+        location: user.location,
+        clientId: user.clientId,
+        role: user.role
+      }
     });
 
   } catch (error) {
+    console.error('Send OTP error:', error);
     res.status(500).json({
       success: false,
       message: "Failed to process OTP request",
@@ -57,6 +84,123 @@ export const sendOTP = async (req, res) => {
     });
   }
 };
+
+
+export const verifyOTP = async (req, res) => {
+  const { phone, otp } = req.body;
+
+  try {
+    // Validate input
+    if (!phone || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone and OTP are required"
+      });
+    }
+
+    // Check if OTP exists and is valid
+    const storedData = otpStore.get(phone);
+    
+    if (!storedData) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired or not found. Please request a new OTP."
+      });
+    }
+
+    // Check if OTP expired
+    if (Date.now() > storedData.expiresAt) {
+      otpStore.delete(phone);
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired. Please request a new OTP."
+      });
+    }
+
+    // Verify OTP (in development, you might want to use a fixed OTP like "123456")
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    if (storedData.otp !== otp && !(isDevelopment && otp === '123456')) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP. Please try again."
+      });
+    }
+
+    // OTP verified successfully - remove from store
+    otpStore.delete(phone);
+
+    // Find user
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    // Generate JWT token
+    const token = generateToken(user);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        phone: user.phone,
+        location: user.location,
+        clientId: user.clientId,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Login failed',
+      error: error.message
+    });
+  }
+};
+
+// export const sendOTP = async (req, res) => {
+//   const { phone } = req.body;
+
+//   if (!phone) {
+//     return res.status(400).json({ 
+//       success: false, 
+//       message: "Phone number is required" 
+//     });
+//   }
+
+//   try {
+//     const user = await User.findOne({ phone });
+
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Phone number not registered. Please register first."
+//       });
+//     }
+
+//     // In a real app, you would send OTP here
+//     // For now, we'll just return success
+//     return res.status(200).json({
+//       success: true,
+//       message: "OTP sent successfully",
+//       phone: user.phone
+//     });
+
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to process OTP request",
+//       error: error.message
+//     });
+//   }
+// };
 
 // const otpStore = new Map();
 
@@ -116,46 +260,46 @@ export const sendOTP = async (req, res) => {
 //     });
 //   }
 // };
-export const verifyOTP = async (req, res) => {
-  const { phone, otp } = req.body;
+// export const verifyOTP = async (req, res) => {
+//   const { phone, otp } = req.body;
 
-  try {
-    // In a real app, verify OTP with Firebase
-    // For now, we'll assume OTP is valid
+//   try {
+//     // In a real app, verify OTP with Firebase
+//     // For now, we'll assume OTP is valid
     
-    const user = await User.findOne({ phone });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found"
-      });
-    }
+//     const user = await User.findOne({ phone });
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "User not found"
+//       });
+//     }
 
-     const token = generateToken(user);
+//      const token = generateToken(user);
 
-    return res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone,
-        location: user.location,
-        clientId: user.clientId,
-        role: user.role
-      }
-    });
+//     return res.status(200).json({
+//       success: true,
+//       message: 'Login successful',
+//       token,
+//       user: {
+//         id: user._id,
+//         name: user.name,
+//         phone: user.phone,
+//         location: user.location,
+//         clientId: user.clientId,
+//         role: user.role
+//       }
+//     });
 
-  } catch (error) {
-    console.error('Login error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Login failed',
-      error: error.message
-    });
-  }
-};
+//   } catch (error) {
+//     console.error('Login error:', error);
+//     return res.status(500).json({
+//       success: false,
+//       message: 'Login failed',
+//       error: error.message
+//     });
+//   }
+// };
 
 // export const verifyOTP = async (req, res) => {
 //   const { phone, otp } = req.body;
