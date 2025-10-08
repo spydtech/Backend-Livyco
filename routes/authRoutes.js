@@ -38,6 +38,7 @@ import {
   updateRoomType
 } from '../controllers/roomController.js';
 import  { verifyToken }  from "../utils/jwtUtils.js";
+import  recaptchaMiddleware  from "../middlewares/recaptchaMiddleware.js";
 import upload from '../config/multerConfig.js';
 import { aadharUpload } from '../config/cloudinaryConfig.js';
 import { savePGProperty, getPGProperty, deletePGProperty } from "../controllers/pgController.js";
@@ -71,6 +72,8 @@ import {
   getUserVacateRequests,
   addDeduction
 } from '../controllers/vacateController.js';
+
+
 
 
 //chat imports
@@ -198,8 +201,8 @@ router.delete('/pg/:pgId', verifyToken, deletePGProperty);
 
 
 // Auth routes
-router.post("/send-otp",sendOTP);
-router.post("/verify-otp", verifyOTP);
+router.post("/send-otp", recaptchaMiddleware,sendOTP);
+router.post("/verify-otp", recaptchaMiddleware, verifyOTP);
 router.post("/register", register);
 router.get('/user', verifyToken, getUser);
 router.put('/user/profile', verifyToken, updateUserProfile);

@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@google-cloud/recaptcha-enterprise": "^6.3.0",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^1.28.1",
