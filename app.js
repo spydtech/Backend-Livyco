@@ -225,6 +225,12 @@ console.log('File exists:', existsSync(path));
 const io = new Server(server, {
   cors: {
     origin: ["https://api.livyco.com", "http://localhost:5173", "https://livyco.com", "http://82.29.161.78:5000"],
+    allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'recaptcha-token', // Add this line
+    'x-recaptcha-token' // Alternative header name
+  ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true
   }
