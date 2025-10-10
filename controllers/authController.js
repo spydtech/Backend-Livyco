@@ -138,8 +138,6 @@ export const verifyFirebaseOTP = async (req, res) => {
       errorMessage = "OTP has expired. Please request a new one.";
     } else if (error.code === 'auth/invalid-id-token') {
       errorMessage = "Invalid OTP. Please try again.";
-    } else if (error.code === 'auth/argument-error') {
-      errorMessage = "Invalid token format.";
     }
 
     return res.status(401).json({
