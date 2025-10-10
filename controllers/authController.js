@@ -7,7 +7,7 @@ import fs from 'fs';
 import multer from 'multer';
 import { cloudinary } from "../config/cloudinaryConfig.js";
 import crypto from 'crypto';
-
+import admin from './../config/firebase.js';
 // Helper function to delete uploaded files on error
 // Helper function to delete uploaded files on error
 // Helper function to cleanup Cloudinary uploads
@@ -21,13 +21,134 @@ const cleanupCloudinaryUpload = async (publicId) => {
   }
 };
 
-const otpStore = new Map();
+export const checkUserExists = async (req, res) => {
+  const { phone } = req.body;
 
-// Helper function to generate OTP
-const generateOTP = () => {
-  return crypto.randomInt(100000, 999999).toString();
+  if (!phone) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Phone number is required" 
+    });
+  }
+
+  try {
+    // Check if user exists
+    const user = await User.findOne({ phone });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Phone number not registered. Please register first."
+      });
+    }
+
+    // Check user role
+    if (user.role !== 'client') {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Client login only."
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "User found. You can proceed with OTP verification.",
+      user: {
+        id: user._id,
+        name: user.name,
+        phone: user.phone,
+        location: user.location,
+        clientId: user.clientId,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Check user error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to check user",
+      error: error.message
+    });
+  }
 };
 
+export const verifyFirebaseOTP = async (req, res) => {
+  const { idToken } = req.body;
+
+  try {
+    if (!idToken) {
+      return res.status(400).json({
+        success: false,
+        message: "ID token is required"
+      });
+    }
+
+    // Verify Firebase ID token
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const phoneNumber = decodedToken.phone_number;
+    
+    // Extract just the digits from phone number
+    const phoneDigits = phoneNumber.replace(/\D/g, '').slice(-10);
+
+    // Find user in database
+    const user = await User.findOne({ phone: phoneDigits });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found. Please register first."
+      });
+    }
+
+    // Check user role
+    if (user.role !== 'client') {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Client login only."
+      });
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Generate JWT token for your backend
+    const token = generateToken(user);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        phone: user.phone,
+        location: user.location,
+        clientId: user.clientId,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Firebase OTP verification error:', error);
+    
+    let errorMessage = "OTP verification failed";
+    if (error.code === 'auth/id-token-expired') {
+      errorMessage = "OTP has expired. Please request a new one.";
+    } else if (error.code === 'auth/invalid-id-token') {
+      errorMessage = "Invalid OTP. Please try again.";
+    } else if (error.code === 'auth/argument-error') {
+      errorMessage = "Invalid token format.";
+    }
+
+    return res.status(401).json({
+      success: false,
+      message: errorMessage,
+      error: error.message
+    });
+  }
+};
 
 export const sendOTP = async (req, res) => {
   const { phone } = req.body;
@@ -49,34 +170,15 @@ export const sendOTP = async (req, res) => {
       });
     }
 
-    // Generate OTP
-    const otp = generateOTP();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    // Store OTP
-    otpStore.set(phone, { otp, expiresAt });
-
-    // TODO: Integrate with SMS service (Twilio, MSG91, etc.)
-    console.log(`OTP for ${phone}: ${otp}`); // Remove this in production
-
-    // In production, send SMS here
-    // await sendSMS(phone, `Your Livyco OTP is: ${otp}`);
-
+    // In a real app, you would send OTP here
+    // For now, we'll just return success
     return res.status(200).json({
       success: true,
       message: "OTP sent successfully",
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone,
-        location: user.location,
-        clientId: user.clientId,
-        role: user.role
-      }
+      phone: user.phone
     });
 
   } catch (error) {
-    console.error('Send OTP error:', error);
     res.status(500).json({
       success: false,
       message: "Failed to process OTP request",
@@ -85,126 +187,9 @@ export const sendOTP = async (req, res) => {
   }
 };
 
+const otpStore = new Map();
 
-export const verifyOTP = async (req, res) => {
-  const { phone, otp } = req.body;
-
-  try {
-    // Validate input
-    if (!phone || !otp) {
-      return res.status(400).json({
-        success: false,
-        message: "Phone and OTP are required"
-      });
-    }
-
-    // Check if OTP exists and is valid
-    const storedData = otpStore.get(phone);
-    
-    if (!storedData) {
-      return res.status(400).json({
-        success: false,
-        message: "OTP expired or not found. Please request a new OTP."
-      });
-    }
-
-    // Check if OTP expired
-    if (Date.now() > storedData.expiresAt) {
-      otpStore.delete(phone);
-      return res.status(400).json({
-        success: false,
-        message: "OTP expired. Please request a new OTP."
-      });
-    }
-
-    // Verify OTP (in development, you might want to use a fixed OTP like "123456")
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    if (storedData.otp !== otp && !(isDevelopment && otp === '123456')) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid OTP. Please try again."
-      });
-    }
-
-    // OTP verified successfully - remove from store
-    otpStore.delete(phone);
-
-    // Find user
-    const user = await User.findOne({ phone });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found"
-      });
-    }
-
-    // Generate JWT token
-    const token = generateToken(user);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone,
-        location: user.location,
-        clientId: user.clientId,
-        role: user.role
-      }
-    });
-
-  } catch (error) {
-    console.error('Login error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Login failed',
-      error: error.message
-    });
-  }
-};
-
-// export const sendOTP = async (req, res) => {
-//   const { phone } = req.body;
-
-//   if (!phone) {
-//     return res.status(400).json({ 
-//       success: false, 
-//       message: "Phone number is required" 
-//     });
-//   }
-
-//   try {
-//     const user = await User.findOne({ phone });
-
-//     if (!user) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Phone number not registered. Please register first."
-//       });
-//     }
-
-//     // In a real app, you would send OTP here
-//     // For now, we'll just return success
-//     return res.status(200).json({
-//       success: true,
-//       message: "OTP sent successfully",
-//       phone: user.phone
-//     });
-
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       message: "Failed to process OTP request",
-//       error: error.message
-//     });
-//   }
-// };
-
-// const otpStore = new Map();
-
-// // Helper function to generate OTP
+// Helper function to generate OTP
 // const generateOTP = () => {
 //   return crypto.randomInt(100000, 999999).toString();
 // };
@@ -260,46 +245,46 @@ export const verifyOTP = async (req, res) => {
 //     });
 //   }
 // };
-// export const verifyOTP = async (req, res) => {
-//   const { phone, otp } = req.body;
+export const verifyOTP = async (req, res) => {
+  const { phone, otp } = req.body;
 
-//   try {
-//     // In a real app, verify OTP with Firebase
-//     // For now, we'll assume OTP is valid
+  try {
+    // In a real app, verify OTP with Firebase
+    // For now, we'll assume OTP is valid
     
-//     const user = await User.findOne({ phone });
-//     if (!user) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "User not found"
-//       });
-//     }
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
 
-//      const token = generateToken(user);
+     const token = generateToken(user);
 
-//     return res.status(200).json({
-//       success: true,
-//       message: 'Login successful',
-//       token,
-//       user: {
-//         id: user._id,
-//         name: user.name,
-//         phone: user.phone,
-//         location: user.location,
-//         clientId: user.clientId,
-//         role: user.role
-//       }
-//     });
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        phone: user.phone,
+        location: user.location,
+        clientId: user.clientId,
+        role: user.role
+      }
+    });
 
-//   } catch (error) {
-//     console.error('Login error:', error);
-//     return res.status(500).json({
-//       success: false,
-//       message: 'Login failed',
-//       error: error.message
-//     });
-//   }
-// };
+  } catch (error) {
+    console.error('Login error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Login failed',
+      error: error.message
+    });
+  }
+};
 
 // export const verifyOTP = async (req, res) => {
 //   const { phone, otp } = req.body;
@@ -379,13 +364,13 @@ export const verifyOTP = async (req, res) => {
 //   }
 // };
 
-  // if (user.role === 'client') {
-  //   baseResponse.businessName = user.businessName;
-  // } else if (user.role === 'user') {
-  //   baseResponse.preferences = user.preferences;
-  // }
+//   if (user.role === 'client') {
+//     baseResponse.businessName = user.businessName;
+//   } else if (user.role === 'user') {
+//     baseResponse.preferences = user.preferences;
+//   }
 
-  // return baseResponse;
+//   return baseResponse;
 
 // Registration with auto-generated clientId
 export const register = async (req, res) => {
