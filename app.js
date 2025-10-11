@@ -280,7 +280,7 @@ io.on('connection', (socket) => {
 app.use(cors({
   origin: ["https://api.livyco.com", "http://localhost:5173", "https://livyco.com", "http://82.29.161.78:5000"],
   credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization",'recaptcha-token', 'x-recaptcha-token'],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   exposedHeaders: ["Authorization"]
 }));
