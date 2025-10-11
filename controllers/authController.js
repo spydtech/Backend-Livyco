@@ -74,9 +74,11 @@ export const checkUserExists = async (req, res) => {
 };
 
 export const verifyFirebaseOTP = async (req, res) => {
-  const { idToken } = req.body;
+  const { idToken, phone, otp } = req.body;
 
   try {
+    console.log("Received ID token for verification");
+    
     if (!idToken) {
       return res.status(400).json({
         success: false,
@@ -85,27 +87,25 @@ export const verifyFirebaseOTP = async (req, res) => {
     }
 
     // Verify Firebase ID token
+    console.log("Verifying Firebase ID token...");
     const decodedToken = await admin.auth().verifyIdToken(idToken);
+    console.log("Token decoded successfully:", decodedToken);
+    
     const phoneNumber = decodedToken.phone_number;
+    console.log("Phone number from token:", phoneNumber);
     
     // Extract just the digits from phone number
     const phoneDigits = phoneNumber.replace(/\D/g, '').slice(-10);
+    console.log("Extracted phone digits:", phoneDigits);
 
     // Find user in database
     const user = await User.findOne({ phone: phoneDigits });
+    console.log("User found in database:", user);
 
     if (!user) {
       return res.status(404).json({
         success: false,
         message: "User not found. Please register first."
-      });
-    }
-
-    // Check user role
-    if (user.role !== 'client') {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. Client login only."
       });
     }
 
@@ -115,6 +115,7 @@ export const verifyFirebaseOTP = async (req, res) => {
 
     // Generate JWT token for your backend
     const token = generateToken(user);
+    console.log("JWT token generated successfully");
 
     return res.status(200).json({
       success: true,
@@ -138,12 +139,17 @@ export const verifyFirebaseOTP = async (req, res) => {
       errorMessage = "OTP has expired. Please request a new one.";
     } else if (error.code === 'auth/invalid-id-token') {
       errorMessage = "Invalid OTP. Please try again.";
+    } else if (error.code === 'auth/argument-error') {
+      errorMessage = "Invalid token format.";
+    } else if (error.code === 'auth/app-not-authorized') {
+      errorMessage = "Firebase app not authorized.";
     }
 
     return res.status(401).json({
       success: false,
       message: errorMessage,
-      error: error.message
+      error: error.message,
+      code: error.code
     });
   }
 };
@@ -185,7 +191,7 @@ export const sendOTP = async (req, res) => {
   }
 };
 
-const otpStore = new Map();
+// const otpStore = new Map();
 
 // Helper function to generate OTP
 // const generateOTP = () => {
