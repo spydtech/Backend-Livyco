@@ -32,7 +32,6 @@ export const checkUserExists = async (req, res) => {
   }
 
   try {
-    // Check if user exists
     const user = await User.findOne({ phone });
 
     if (!user) {
@@ -42,7 +41,6 @@ export const checkUserExists = async (req, res) => {
       });
     }
 
-    // Check user role
     if (user.role !== 'client') {
       return res.status(403).json({
         success: false,
@@ -76,72 +74,37 @@ export const checkUserExists = async (req, res) => {
 export const verifyFirebaseOTP = async (req, res) => {
   const { idToken } = req.body;
 
+  console.log("=== FIREBASE OTP VERIFICATION START ===");
+
   try {
-    console.log("🔄 Received ID token for verification");
-    
     if (!idToken) {
-      console.log("❌ No ID token provided");
+      console.log("ERROR: No ID token provided");
       return res.status(400).json({
         success: false,
         message: "ID token is required"
       });
     }
 
-    // Test Firebase Admin connection first
-    console.log("🔧 Testing Firebase Admin connection...");
-    if (!admin.apps.length) {
-      throw new Error('Firebase Admin not initialized');
-    }
+    console.log("ID token received, verifying...");
 
     // Verify Firebase ID token
-    console.log("🔐 Verifying Firebase ID token...");
     let decodedToken;
     try {
-      decodedToken = await admin.auth().verifyIdToken(idToken, true); // Check revoked tokens
-      console.log("✅ Token decoded successfully");
-    } catch (firebaseError) {
-      console.error("❌ Firebase token verification failed:", {
-        code: firebaseError.code,
-        message: firebaseError.message
-      });
-
-      let errorMessage = "OTP verification failed";
-      let statusCode = 401;
-
-      switch (firebaseError.code) {
-        case 'auth/id-token-expired':
-          errorMessage = "OTP has expired. Please request a new one.";
-          break;
-        case 'auth/invalid-id-token':
-          errorMessage = "Invalid OTP. Please try again.";
-          break;
-        case 'auth/argument-error':
-          errorMessage = "Invalid token format.";
-          break;
-        case 'auth/user-disabled':
-          errorMessage = "This account has been disabled.";
-          break;
-        case 'auth/user-not-found':
-          errorMessage = "User not found.";
-          break;
-        case 'auth/network-request-failed':
-          errorMessage = "Network error. Please try again.";
-          break;
-        default:
-          errorMessage = firebaseError.message || "Authentication failed";
-      }
-
-      return res.status(statusCode).json({
+      decodedToken = await admin.auth().verifyIdToken(idToken);
+      console.log(" Token verified successfully");
+      console.log("Decoded token phone:", decodedToken.phone_number);
+    } catch (verifyError) {
+      console.error(" Token verification failed:", verifyError);
+      
+      return res.status(401).json({
         success: false,
-        message: errorMessage,
-        error: firebaseError.code
+        message: "Token verification failed",
+        error: verifyError.message,
+        code: verifyError.code
       });
     }
 
-    // Extract phone number from the decoded token
     const phoneNumber = decodedToken.phone_number;
-    console.log("📱 Phone number from token:", phoneNumber);
-    
     if (!phoneNumber) {
       return res.status(400).json({
         success: false,
@@ -149,24 +112,22 @@ export const verifyFirebaseOTP = async (req, res) => {
       });
     }
 
-    // Extract just the digits from phone number
+    // Extract phone digits (last 10 digits)
     const phoneDigits = phoneNumber.replace(/\D/g, '').slice(-10);
-    console.log("🔢 Extracted phone digits:", phoneDigits);
+    console.log("Extracted phone digits:", phoneDigits);
 
-    // Find user in database by phone number
+    // Find user in database
     const user = await User.findOne({ phone: phoneDigits });
-    
+    console.log("User found:", user ? user.phone : "NOT FOUND");
+
     if (!user) {
-      console.log("❌ User not found in database for phone:", phoneDigits);
       return res.status(404).json({
         success: false,
         message: "User not found. Please register first."
       });
     }
 
-    console.log("✅ User found:", user.name, "- Role:", user.role);
-
-    // Check user role (only allow clients to login)
+    // Check if user is a client
     if (user.role !== 'client') {
       return res.status(403).json({
         success: false,
@@ -174,16 +135,15 @@ export const verifyFirebaseOTP = async (req, res) => {
       });
     }
 
-    // Update last login timestamp
+    // Update last login
     user.lastLogin = new Date();
     await user.save();
-    console.log("📅 Last login updated");
 
-    // Generate JWT token for your backend
+    // Generate JWT token
     const token = generateToken(user);
-    console.log("✅ JWT token generated successfully");
 
-    // Return success response
+    console.log("=== FIREBASE OTP VERIFICATION SUCCESS ===");
+
     return res.status(200).json({
       success: true,
       message: 'Login successful',
@@ -199,15 +159,13 @@ export const verifyFirebaseOTP = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('💥 Unexpected error in OTP verification:', {
-      message: error.message,
-      stack: error.stack
-    });
-    
+    console.error("=== FIREBASE OTP VERIFICATION ERROR ===");
+    console.error("Unexpected error:", error);
+
     return res.status(500).json({
       success: false,
-      message: "Internal server error during verification",
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+      message: "OTP verification failed",
+      error: error.message
     });
   }
 };
