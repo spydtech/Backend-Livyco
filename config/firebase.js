@@ -14,37 +14,21 @@
 // console.log("Firebase Admin initialized");
 // export default admin;
 
-// // firebase-admin-config.js
-// import { readFile } from 'fs/promises';
-// import admin from "firebase-admin";
-
-// // Use relative path from the current file
-// const serviceAccount = JSON.parse(
-//   await readFile(new URL('../livyco-b65f5-firebase-adminsdk-fbsvc-bdf4b116db.json', import.meta.url))
-// );
-
-// admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount),
-// });
-
-// console.log("Firebase Admin initialized");
-// export default admin;
-
 
 
 
 
 
 import admin from 'firebase-admin';
-import { readFileSync, existsSync } from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Initialize Firebase Admin only once with better error handling
+let firebaseAdminInitialized = false;
 
-// Initialize Firebase Admin only once
-if (!admin.apps.length) {
+const initializeFirebaseAdmin = () => {
+  if (firebaseAdminInitialized) {
+    return admin;
+  }
+
   try {
     console.log('🔄 Initializing Firebase Admin...');
     
@@ -63,83 +47,41 @@ if (!admin.apps.length) {
         "universe_domain": "googleapis.com"
     };
 
+    // Validate required fields
+    if (!serviceAccount.private_key) {
+      throw new Error("Firebase private key is missing");
+    }
+
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       databaseURL: "https://livyco-b65f5-default-rtdb.firebaseio.com"
     });
     
-    console.log("✅ Firebase Admin initialized successfully");
+    firebaseAdminInitialized = true;
+    console.log(" Firebase Admin initialized successfully");
+    
+    return admin;
     
   } catch (error) {
-    console.error("❌ Firebase Admin initialization failed:", error);
-    throw error;
+    console.error(" Firebase Admin initialization failed:", error);
+    
+    // Fallback: Try with application default credentials
+    try {
+      console.log("🔄 Trying Firebase Admin with default credentials...");
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+        databaseURL: "https://livyco-b65f5-default-rtdb.firebaseio.com"
+      });
+      
+      firebaseAdminInitialized = true;
+      console.log(" Firebase Admin initialized with default credentials");
+      return admin;
+    } catch (fallbackError) {
+      console.error(" Firebase Admin fallback also failed:", fallbackError);
+      throw fallbackError;
+    }
   }
-}
+};
 
-export default admin;
-
-
-
-
-// import admin from 'firebase-admin';
-// import { readFileSync } from 'fs';
-// import path from 'path';
-// import { fileURLToPath } from 'url';
-
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-
-// // Initialize Firebase Admin
-// if (!admin.apps.length) {
-//   try {
-//     // Load service account from JSON file
-//     const serviceAccountPath = path.join(__dirname, '../livyco-b65f5-firebase-adminsdk-fbsvc-bdf4b116db.json');
-//     const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
-//     console.log("Service account loaded successfully", serviceAccountPath);
-    
-//     admin.initializeApp({
-//       credential: admin.credential.cert(serviceAccount),
-//       databaseURL: "https://livyco-b65f5-default-rtdb.firebaseio.com"
-//     });
-    
-//     console.log("✅ Firebase Admin initialized successfully");
-//   } catch (error) {
-//     console.error("❌ Firebase Admin initialization failed:", error);
-//     throw error;
-//   }
-// }
-
-// export default admin;
-
-
-
-
-
-// import admin from 'firebase-admin';
-// import { readFileSync } from 'fs';
-// import path from 'path';
-// import { fileURLToPath } from 'url';
-
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-
-// // Initialize Firebase Admin
-// if (!admin.apps.length) {
-//   try {
-//     // Load service account from JSON file
-//     const serviceAccountPath = path.join(__dirname, '../livyco-b65f5-firebase-adminsdk-fbsvc-bdf4b116db.json');
-//     const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
-    
-//     admin.initializeApp({
-//       credential: admin.credential.cert(serviceAccount),
-//       databaseURL: "https://livyco-b65f5-default-rtdb.firebaseio.com"
-//     });
-    
-//     console.log("✅ Firebase Admin initialized successfully");
-//   } catch (error) {
-//     console.error("❌ Firebase Admin initialization failed:", error);
-//     throw error;
-//   }
-// }
-
-// export default admin;
+// Export initialized admin
+export default initializeFirebaseAdmin();
