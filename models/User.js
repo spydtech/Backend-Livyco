@@ -123,9 +123,13 @@ const userSchema = new mongoose.Schema({
     unique: true,
     match: [/^\d{12}$/, 'Enter a valid Aadhaar number']
   },
+  // aadharPhoto: {
+  //   type: String,
+  //   required: [true, 'Aadhar photo is required']
+  // },
   aadharPhoto: {
-    type: String,
-    required: [true, 'Aadhar photo is required']
+  type: String,
+  required: false // Make it optional
   },
   whatsappUpdates: {
     type: Boolean,
