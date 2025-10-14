@@ -560,8 +560,8 @@ export const addTenantByClient = async (req, res) => {
       gender,
       dob: dob ? new Date(dob) : null,
       aadhaarNumber,
-      aadharPhoto: req.file.path,
-      aadharPhotoPublicId: req.file.filename,
+      aadharPhoto: req.file?.path || undefined, // Make it optional
+      aadharPhotoPublicId: req.file?.filename || undefined, // Make it optional
       role: 'user',
       whatsappUpdates: whatsappUpdates === 'true' || whatsappUpdates === true,
       userType,
