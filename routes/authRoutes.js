@@ -4,7 +4,7 @@ import { sendOTP,
   verifyFirebaseOTP, 
   register, 
   getUser, 
-  verifyOTP, getAllUsers, updateUserProfile, addTenantByClient } from "../controllers/authController.js";
+  verifyOTP, getAllUsers, updateUserProfile, addTenantByClient, healthCheck } from "../controllers/authController.js";
 import {
   registerProperty,
   getProperty,
@@ -208,6 +208,7 @@ router.delete('/pg/:pgId', verifyToken, deletePGProperty);
 // Auth routes
 router.post("/check-user", checkUserExists); // Check if user exists before sending OTP
 router.post("/verify-firebase-otp", verifyFirebaseOTP); // For Firebase OTP verification
+router.get("/health", healthCheck);
 router.post("/send-otp", sendOTP);
 router.post("/verify-otp",  verifyOTP);
 router.post("/register",  register);
