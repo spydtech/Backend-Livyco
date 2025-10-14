@@ -121,6 +121,7 @@ const userSchema = new mongoose.Schema({
  aadhaarNumber: {
     type: String,
     unique: true,
+    sparse: true, // Make it sparse to allow null/undefined
     match: [/^\d{12}$/, 'Enter a valid Aadhaar number']
   },
   // aadharPhoto: {
