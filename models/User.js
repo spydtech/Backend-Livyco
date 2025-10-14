@@ -132,6 +132,9 @@ const userSchema = new mongoose.Schema({
   type: String,
   required: false // Make it optional
   },
+   aadharPhotoPublicId: {
+    type: String
+  },
   whatsappUpdates: {
     type: Boolean,
     default: false
