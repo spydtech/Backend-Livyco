@@ -30,7 +30,7 @@ const initializeFirebaseAdmin = () => {
   }
 
   try {
-    console.log('🔄 Initializing Firebase Admin...');
+    console.log(' Initializing Firebase Admin...');
     
     // Use direct service account configuration (more reliable)
     const serviceAccount = {
@@ -67,7 +67,7 @@ const initializeFirebaseAdmin = () => {
     
     // Fallback: Try with application default credentials
     try {
-      console.log("🔄 Trying Firebase Admin with default credentials...");
+      console.log(" Trying Firebase Admin with default credentials...");
       admin.initializeApp({
         credential: admin.credential.applicationDefault(),
         databaseURL: "https://livyco-b65f5-default-rtdb.firebaseio.com"
