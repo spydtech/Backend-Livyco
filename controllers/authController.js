@@ -20,8 +20,169 @@ const cleanupCloudinaryUpload = async (publicId) => {
   }
 };
 
+// export const checkUserExists = async (req, res) => {
+//   const { phone } = req.body;
+
+//   if (!phone) {
+//     return res.status(400).json({ 
+//       success: false, 
+//       message: "Phone number is required" 
+//     });
+//   }
+
+//   try {
+//     const user = await User.findOne({ phone });
+
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Phone number not registered. Please register first."
+//       });
+//     }
+
+//     if (user.role !== 'client') {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Access denied. Client login only."
+//       });
+//     }
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "User found. You can proceed with OTP verification.",
+//       user: {
+//         id: user._id,
+//         name: user.name,
+//         phone: user.phone,
+//         location: user.location,
+//         clientId: user.clientId,
+//         role: user.role
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('Check user error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to check user",
+//       error: error.message
+//     });
+//   }
+// };
+
+// export const verifyFirebaseOTP = async (req, res) => {
+//   const { idToken } = req.body;
+
+//   console.log("=== FIREBASE OTP VERIFICATION START ===");
+
+//   try {
+//     if (!idToken) {
+//       console.log("ERROR: No ID token provided");
+//       return res.status(400).json({
+//         success: false,
+//         message: "ID token is required"
+//       });
+//     }
+
+//     console.log("ID token received, verifying...");
+
+//     // Verify Firebase ID token
+//     let decodedToken;
+//     try {
+//       decodedToken = await admin.auth().verifyIdToken(idToken);
+//       console.log("✅ Token verified successfully");
+//     } catch (verifyError) {
+//       console.error("❌ Token verification failed:", verifyError);
+      
+//       return res.status(401).json({
+//         success: false,
+//         message: "Token verification failed",
+//         error: verifyError.message,
+//         code: verifyError.code
+//       });
+//     }
+
+//     console.log("Decoded token phone:", decodedToken.phone_number);
+
+//     const phoneNumber = decodedToken.phone_number;
+//     const phoneDigits = phoneNumber.replace(/\D/g, '').slice(-10);
+//     console.log("Extracted phone digits:", phoneDigits);
+
+//     // Find user in database - use lean() to avoid Mongoose document
+//     const user = await User.findOne({ phone: phoneDigits }).lean();
+//     console.log("User found:", user ? `${user.phone} (${user.role})` : "NOT FOUND");
+
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "User not found. Please register first."
+//       });
+//     }
+
+//     // Check if user is a client
+//     if (user.role !== 'client') {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Access denied. Client login only."
+//       });
+//     }
+
+//     // Update last login WITHOUT using save() to avoid validation
+//     await User.updateOne(
+//       { _id: user._id }, 
+//       { 
+//         $set: { 
+//           lastLogin: new Date()
+//         } 
+//       }
+//     );
+
+//     // Generate JWT token
+//     const token = generateToken(user);
+
+//     console.log("=== FIREBASE OTP VERIFICATION SUCCESS ===");
+
+//     return res.status(200).json({
+//       success: true,
+//       message: 'Login successful',
+//       token,
+//       user: {
+//         id: user._id,
+//         name: user.name,
+//         phone: user.phone,
+//         location: user.location,
+//         clientId: user.clientId,
+//         role: user.role
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error("=== FIREBASE OTP VERIFICATION ERROR ===");
+//     console.error("Unexpected error:", error);
+
+//     // Handle specific validation errors
+//     if (error.name === 'ValidationError') {
+//       return res.status(400).json({
+//         success: false,
+//         message: "User profile incomplete. Please complete your profile.",
+//         error: error.message
+//       });
+//     }
+
+//     return res.status(500).json({
+//       success: false,
+//       message: "OTP verification failed",
+//       error: error.message
+//     });
+//   }
+// };
+
+// Health check endpoint
+
+
+// Check user exists for both client and user
 export const checkUserExists = async (req, res) => {
-  const { phone } = req.body;
+  const { phone, role } = req.body;
 
   if (!phone) {
     return res.status(400).json({ 
@@ -40,10 +201,11 @@ export const checkUserExists = async (req, res) => {
       });
     }
 
-    if (user.role !== 'client') {
+    // If role is specified, check if user has that role
+    if (role && user.role !== role) {
       return res.status(403).json({
         success: false,
-        message: "Access denied. Client login only."
+        message: `Access denied. ${role} login only.`
       });
     }
 
@@ -54,7 +216,7 @@ export const checkUserExists = async (req, res) => {
         id: user._id,
         name: user.name,
         phone: user.phone,
-        location: user.location,
+        email: user.email,
         clientId: user.clientId,
         role: user.role
       }
@@ -70,10 +232,12 @@ export const checkUserExists = async (req, res) => {
   }
 };
 
+// Universal OTP verification for both client and user
 export const verifyFirebaseOTP = async (req, res) => {
-  const { idToken } = req.body;
+  const { idToken, role } = req.body;
 
   console.log("=== FIREBASE OTP VERIFICATION START ===");
+  console.log("Role requested:", role);
 
   try {
     if (!idToken) {
@@ -119,11 +283,11 @@ export const verifyFirebaseOTP = async (req, res) => {
       });
     }
 
-    // Check if user is a client
-    if (user.role !== 'client') {
+    // If role is specified, verify user has the correct role
+    if (role && user.role !== role) {
       return res.status(403).json({
         success: false,
-        message: "Access denied. Client login only."
+        message: `Access denied. ${role} login only. Your account is ${user.role}.`
       });
     }
 
@@ -150,7 +314,7 @@ export const verifyFirebaseOTP = async (req, res) => {
         id: user._id,
         name: user.name,
         phone: user.phone,
-        location: user.location,
+        email: user.email,
         clientId: user.clientId,
         role: user.role
       }
@@ -177,7 +341,21 @@ export const verifyFirebaseOTP = async (req, res) => {
   }
 };
 
+// Separate endpoints for specific roles
+export const verifyClientOTP = async (req, res) => {
+  req.body.role = 'client';
+  return verifyFirebaseOTP(req, res);
+};
+
+export const verifyUserOTP = async (req, res) => {
+  req.body.role = 'user';
+  return verifyFirebaseOTP(req, res);
+};
+
 // Health check endpoint
+
+
+
 export const healthCheck = async (req, res) => {
   try {
     const health = {
@@ -431,63 +609,215 @@ export const verifyOTP = async (req, res) => {
 //   return baseResponse;
 
 // Registration with auto-generated clientId
-export const register = async (req, res) => {
-  const { name, phone, location, role = 'client' } = req.body;
+// export const register = async (req, res) => {
+//   const { name, phone, location, role } = req.body;
 
-  if (!name || !phone || !location) {
+//   if (!name || !phone || !location) {
+//     return res.status(400).json({ 
+//       success: false, 
+//       message: 'Name, phone, and location are required' 
+//     });
+//   }
+
+//   try {
+//     // Check if phone exists
+//     const existingUser = await User.findOne({ phone });
+//     if (existingUser) {
+//       return res.status(409).json({ 
+//         success: false, 
+//         message: 'User with this phone already exists' 
+//       });
+//     }
+
+//     // Create new user (clientId will be auto-generated)
+//     const newUser = new User({ 
+//       name, 
+//       phone, 
+//       location, 
+
+//       role 
+//     });
+
+//     // Manually validate if needed
+//     await newUser.validate();
+    
+//     const savedUser = await newUser.save();
+//     const token = generateToken(savedUser);
+
+//     return res.status(201).json({
+//       success: true,
+//       message: 'Registration successful',
+//       token,
+//       user: {
+//         id: savedUser._id,
+//         name: savedUser.name,
+//         phone: savedUser.phone,
+//         location: savedUser.location,
+//         clientId: savedUser.clientId,
+//         role: savedUser.role
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('Registration error:', error);
+//     return res.status(500).json({ 
+//       success: false, 
+//       message: 'Registration failed', 
+//       error: error.message 
+//     });
+//   }
+// };
+
+
+
+// Universal registration for both client and user
+// Universal registration for both client and user
+export const register = async (req, res) => {
+  const { name, phone, email, role = 'user' } = req.body;
+
+  console.log("=== REGISTRATION START ===");
+  console.log("Registration data:", { name, phone, email, role });
+
+  // Validate required fields
+  if (!name || !phone || !email) {
     return res.status(400).json({ 
       success: false, 
-      message: 'Name, phone, and location are required' 
+      message: 'Name, phone, and email are required' 
+    });
+  }
+
+  // Validate phone format
+  const phoneRegex = /^[0-9]{10,15}$/;
+  if (!phoneRegex.test(phone)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please enter a valid phone number (10-15 digits)'
+    });
+  }
+
+  // Validate email format
+  const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please enter a valid email address'
+    });
+  }
+
+  // Validate role
+  if (role && !['client', 'user'].includes(role)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid role. Must be either "client" or "user"'
     });
   }
 
   try {
-    // Check if phone exists
-    const existingUser = await User.findOne({ phone });
-    if (existingUser) {
+    // Check if phone already exists
+    const existingPhone = await User.findOne({ phone });
+    if (existingPhone) {
       return res.status(409).json({ 
         success: false, 
-        message: 'User with this phone already exists' 
+        message: 'User with this phone number already exists. Please login instead.' 
       });
     }
 
-    // Create new user (clientId will be auto-generated)
+    // Check if email already exists
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      return res.status(409).json({ 
+        success: false, 
+        message: 'User with this email already exists. Please use a different email.' 
+      });
+    }
+
+    // Create new user
     const newUser = new User({ 
       name, 
       phone, 
-      location, 
-
+      email,
       role 
     });
 
-    // Manually validate if needed
-    await newUser.validate();
-    
+    console.log("New user object:", newUser);
+
+    // Validate the user data
+    try {
+      await newUser.validate();
+    } catch (validationError) {
+      console.error("Validation error:", validationError);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user data',
+        error: validationError.message
+      });
+    }
+
+    // Save the user (clientId will be auto-generated by the pre-save hook)
     const savedUser = await newUser.save();
+    console.log("User saved successfully:", savedUser);
+
+    // Generate JWT token
     const token = generateToken(savedUser);
+
+    console.log("=== REGISTRATION SUCCESS ===");
 
     return res.status(201).json({
       success: true,
-      message: 'Registration successful',
+      message: `Registration successful! Welcome ${savedUser.role}.`,
       token,
       user: {
         id: savedUser._id,
         name: savedUser.name,
         phone: savedUser.phone,
-        location: savedUser.location,
+        email: savedUser.email,
         clientId: savedUser.clientId,
         role: savedUser.role
       }
     });
 
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error("=== REGISTRATION ERROR ===");
+    console.error("Registration error:", error);
+
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyValue)[0];
+      const fieldName = field === 'phone' ? 'phone number' : 'email';
+      return res.status(409).json({
+        success: false,
+        message: `User with this ${fieldName} already exists`,
+        error: 'Duplicate entry'
+      });
+    }
+
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors
+      });
+    }
+
     return res.status(500).json({ 
       success: false, 
-      message: 'Registration failed', 
+      message: 'Registration failed. Please try again.', 
       error: error.message 
     });
   }
+};
+
+// Role-specific registration endpoints
+export const registerClient = async (req, res) => {
+  req.body.role = 'client';
+  return register(req, res);
+};
+
+export const registerUser = async (req, res) => {
+  req.body.role = 'user';
+  return register(req, res);
 };
 
 // Add tenant by client
